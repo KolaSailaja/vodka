@@ -48,7 +48,7 @@ package main
 
 import (
 	"log"
-	"[github.com/DevanshuTripathi/vodka](https://github.com/DevanshuTripathi/vodka)"
+	"https://github.com/DevanshuTripathi/vodka"
 )
 
 func main() {
