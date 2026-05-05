@@ -9,14 +9,20 @@ import (
 
 // httprouter wrapper
 type Engine struct {
-	router *httprouter.Router
+	router      *httprouter.Router
+	middlewares []HandlerFunc
 }
 
 // creates a new router
 func New() *Engine {
 	return &Engine{
-		router: httprouter.New(),
+		router:      httprouter.New(),
+		middlewares: make([]HandlerFunc, 0),
 	}
+}
+
+func (e *Engine) Use(middleware ...HandlerFunc) {
+	e.middlewares = append(e.middlewares, middleware...)
 }
 
 // Runs the http server
@@ -33,11 +39,18 @@ func (e *Engine) Run(addr string) error {
 
 func (e *Engine) GET(path string, handler HandlerFunc) {
 	e.router.GET(path, func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+
+		handlers := make([]HandlerFunc, 0, len(e.middlewares)+1)
+		handlers = append(handlers, e.middlewares...)
+		handlers = append(handlers, handler)
+
 		c := &Context{
-			Writer:  w,
-			Request: r,
+			Writer:   w,
+			Request:  r,
+			handlers: handlers,
+			index:    -1,
 		}
 
-		handler(c)
+		c.Next()
 	})
 }
