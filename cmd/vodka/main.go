@@ -127,7 +127,7 @@ func main() {
 	})
 
 	// Serve built React files in production
-	app.Static("/", "./frontend/dist")
+	app.ServeSPA("./frontend/dist")
 
 	app.Run(":8080")
 }
