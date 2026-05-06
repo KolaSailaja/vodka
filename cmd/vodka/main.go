@@ -40,15 +40,130 @@ var (
 )
 
 func main() {
-	fmt.Println(Cyan + banner + Reset)
-	log.Println(Blue + "Vodka Watching for Empty Glasses..." + Reset)
 
+	if len(os.Args) == 1 {
+		fmt.Println(Cyan + banner + Reset)
+		log.Println(Blue + "Vodka Watching for Empty Glasses..." + Reset)
+		watchBackend()
+		return
+	}
+
+	switch os.Args[1] {
+	case "create":
+		if len(os.Args) < 3 {
+			fmt.Println(Red + "Usage: vodka create <project-name>" + Reset)
+			return
+		}
+		createProject(os.Args[2])
+
+	case "run":
+		if len(os.Args) >= 3 && os.Args[2] == "dev" {
+			fmt.Println(Cyan + banner + Reset)
+			log.Println(Blue + "Starting Full-Stack Dev Environment..." + Reset)
+			runDev()
+		} else {
+			fmt.Println(Red + "Usage: vodka run dev" + Reset)
+		}
+
+	default:
+		fmt.Printf(Red+"Unknown command '%s'.\n"+Reset, os.Args[1])
+		fmt.Println("Available commands:\n  vodka\n  vodka create <name>\n  vodka run dev")
+
+	}
+}
+
+func runDev() {
+	go func() {
+		frontendDir := filepath.Join(".", "frontend")
+
+		if _, err := os.Stat(frontendDir); os.IsNotExist(err) {
+			log.Println(Red + "Error: 'frontend' directory not found. Are you in a vodka project?" + Reset)
+			return
+		}
+
+		log.Println(Cyan + "Starting Vite Frontend..." + Reset)
+
+		var cmd *exec.Cmd
+		if runtime.GOOS == "windows" {
+			cmd = exec.Command("cmd", "/C", "npm run dev")
+		} else {
+			cmd = exec.Command("npm", "run", "dev")
+		}
+
+		cmd.Dir = frontendDir
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+
+		if err := cmd.Run(); err != nil {
+			log.Println(Red+"Frontend server crashed:"+Reset, err)
+		}
+	}()
+
+	time.Sleep(1 * time.Second)
+	watchBackend()
+}
+
+func createProject(name string) {
+	fmt.Printf(Cyan+"🍸 Distilling your project: %s...\n"+Reset, name)
+
+	os.Mkdir(name, 0755)
+
+	fmt.Println(Gray + "🚀 Initializing Go backend..." + Reset)
+	runCmd(name, "go", "mod", "init", name)
+	runCmd(name, "go", "get", "github.com/DevanshuTripathi/vodka@latest")
+
+	mainGoContent := `package main
+
+import (
+	"github.com/DevanshuTripathi/vodka"
+)
+
+func main() {
+	app := vodka.DefaultRouter()
+
+	api := app.Group("/api")
+	api.GET("/hello", func(c *vodka.Context) {
+		c.JSON(200, vodka.M{"message": "Hello from Vodka!"})
+	})
+
+	// Serve built React files in production
+	app.Static("/", "./frontend/dist")
+
+	app.Run(":8080")
+}
+`
+
+	os.WriteFile(filepath.Join(name, "main.go"), []byte(mainGoContent), 0644)
+
+	fmt.Println(Gray + "Spinning up React frontend with Vite..." + Reset)
+	if runtime.GOOS == "windows" {
+		runCmd(name, "cmd", "/C", "npm create vite@latest frontend -- --template react")
+	} else {
+		runCmd(name, "npm", "create", "vite@latest", "frontend", "--", "--template", "react")
+	}
+
+	fmt.Printf(Green+"\n✨ Project %s is ready!\n"+Reset, name)
+	fmt.Printf("Next steps:\n  cd %s\n  cd frontend && npm install\n  cd ..\n  vodka run dev\n", name)
+}
+
+func runCmd(dir string, name string, args ...string) {
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Printf(Red+"Error running %s: %v\n"+Reset, name, err)
+	}
+}
+
+func watchBackend() {
 	buildAndRun()
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	defer watcher.Close()
 
 	err = watcher.Add(".")
@@ -64,7 +179,6 @@ func main() {
 			if !ok {
 				return
 			}
-
 			if strings.HasSuffix(event.Name, ".go") {
 				if timer != nil {
 					timer.Stop()
@@ -89,6 +203,8 @@ func buildAndRun() {
 		appCmd.Process.Kill()
 		appCmd.Wait()
 	}
+
+	os.Mkdir("tmp", 0755)
 
 	binaryPath := filepath.Join("tmp", "vodka-build")
 	if runtime.GOOS == "windows" {

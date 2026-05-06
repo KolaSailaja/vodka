@@ -3,6 +3,8 @@ package vodka
 import (
 	"log"
 	"net/http"
+	"os"
+	"path"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -66,6 +68,31 @@ func (e *Engine) Run(addr string) error {
 
 	// Using net/http
 	return http.ListenAndServe(addr, e.router)
+}
+
+// Serve Static files
+func (rg *RouterGroup) Static(relativePath string, root string) {
+	urlPattern := path.Join(relativePath, "/*filepath")
+
+	fileServer := http.FileServer(http.Dir(root))
+
+	rg.engine.router.GET(urlPattern, func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+		filepath := params.ByName("filepath")
+		fullPath := path.Join(root, filepath)
+
+		// Check if the requested file actually exists on the disk
+		info, err := os.Stat(fullPath)
+
+		// If the file doesn't exist OR it's a directory, serve index.html (React's entry point)
+		if os.IsNotExist(err) || info.IsDir() {
+			http.ServeFile(w, r, path.Join(root, "index.html"))
+			return
+		}
+
+		// Otherwise, serve the actual file (css, js, images)
+		// We use StripPrefix so /static/js/main.js looks in ./public/js/main.js
+		http.StripPrefix(rg.prefix+relativePath, fileServer).ServeHTTP(w, r)
+	})
 }
 
 func (rg *RouterGroup) addRoute(method string, comp string, handler HandlerFunc) {
