@@ -121,6 +121,10 @@ import (
 func main() {
 	app := vodka.DefaultRouter()
 
+	allowedOrigins := []string{"http://localhost:5173"}
+
+	app.Use(vodka.AllowCORS(allowedOrigins))
+
 	api := app.Group("/api")
 	api.GET("/hello", func(c *vodka.Context) {
 		c.JSON(200, vodka.M{"message": "Hello from Vodka!"})
