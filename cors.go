@@ -21,7 +21,7 @@ func AllowCORS(origins []string) HandlerFunc {
 		if allowThisOrigin != "" {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", allowThisOrigin)
 			c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-			c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
+			c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, Origin, X-Requested-With")
 		}
 
 		if c.Request.Method == http.MethodOptions {
