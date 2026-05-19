@@ -157,6 +157,18 @@ Feature requests are welcome, but please ensure they align with Vodka's philosop
 
 ---
 
+# Issue Assignment Policy
+
+Before requesting assignment to an issue, contributors should provide a short implementation proposal explaining:
+
+- planned approach and methodology
+- proposed API design (if applicable)
+- architectural considerations
+- whether the feature belongs in core or as a plugin/package
+- potential edge cases or compatibility concerns
+
+---
+
 # Philosophy
 
 Vodka is intentionally designed to stay lightweight and developer-focused.

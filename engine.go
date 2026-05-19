@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 
+	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -18,7 +19,8 @@ type RouterGroup struct {
 
 // httprouter wrapper
 type Engine struct {
-	router *httprouter.Router
+	router   *httprouter.Router
+	WSConfig *WSConfig
 	*RouterGroup
 }
 
@@ -27,7 +29,8 @@ func NewRouter() *Engine {
 	router := httprouter.New()
 	router.HandleOPTIONS = false
 	engine := &Engine{
-		router: router,
+		router:   router,
+		WSConfig: DefaultWSConfig(),
 	}
 
 	engine.RouterGroup = &RouterGroup{
@@ -123,25 +126,6 @@ func (e *Engine) ServeSPA(root string) {
 
 // ServeHTTP intercepts every request before it hits the router
 func (e *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	// Create a fresh Context for the incoming request
-	c := &Context{
-		Writer:  w,
-		Request: req,
-	}
-
-	// 1. Run all Global Middlewares FIRST (like your AllowCORS)
-	// This assumes your app.Use() appends to a slice called e.middlewares
-	for _, middleware := range e.middlewares {
-		middleware(c)
-
-		// If a middleware aborts the request (e.g., CORS returns 204 for OPTIONS),
-		// we stop execution immediately. The router is never called.
-		if c.isAborted {
-			return
-		}
-	}
-
-	// 2. If the middleware didn't stop the request, pass it to the router
 	e.router.ServeHTTP(w, req)
 }
 
@@ -179,4 +163,123 @@ func (rg *RouterGroup) PUT(path string, handler HandlerFunc) {
 
 func (rg *RouterGroup) DELETE(path string, handler HandlerFunc) {
 	rg.addRoute(http.MethodDelete, path, handler)
+}
+
+// AllowWSOrigins whitelists the given origins for WebSocket upgrade requests.
+// Call this before registering WS routes.
+//
+//	app.AllowWSOrigins([]string{"https://userapp.com", "https://admin.com"})
+func (e *Engine) AllowWSOrigins(origins []string) {
+	e.WSConfig.CheckOrigin = func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true
+		}
+		for _, o := range origins {
+			if o == "*" || o == origin {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+// SSE registers a Server-Sent Events handler at the given path.
+// The response is kept open and events are pushed to the client until it disconnects.
+// Group middlewares run before the SSE stream is opened.
+func (rg *RouterGroup) SSE(relativePath string, handler SSEHandlerFunc) {
+	absolutePath := rg.prefix + relativePath
+
+	middlewares := make([]HandlerFunc, len(rg.middlewares))
+	copy(middlewares, rg.middlewares)
+
+	rg.engine.router.GET(absolutePath, func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+		// Run group middlewares (auth, rate limiting, etc.) before opening the stream.
+		if len(middlewares) > 0 {
+			c := &Context{
+				Writer:   w,
+				Request:  r,
+				Params:   params,
+				handlers: middlewares,
+				index:    -1,
+			}
+			c.Next()
+			if c.isAborted {
+				return
+			}
+		}
+
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "streaming not supported", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("X-Accel-Buffering", "no") // disable nginx buffering
+
+		sc := &SSEContext{
+			Writer:  w,
+			flusher: flusher,
+			Keys:    make(map[string]any),
+			Params:  params,
+			Request: r,
+		}
+
+		handler(sc)
+	})
+}
+
+// WS registers a WebSocket handler at the given path.
+// Group middlewares (auth, rate limiting, etc.) run during the HTTP upgrade phase.
+// If any middleware aborts the request, the upgrade is cancelled.
+func (rg *RouterGroup) WS(relativePath string, handler WSHandlerFunc) {
+	absolutePath := rg.prefix + relativePath
+
+	cfg := rg.engine.WSConfig
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:   cfg.ReadBufferSize,
+		WriteBufferSize:  cfg.WriteBufferSize,
+		HandshakeTimeout: cfg.HandshakeTimeout,
+		CheckOrigin:      cfg.CheckOrigin,
+	}
+
+	// Snapshot group middlewares at registration time.
+	middlewares := make([]HandlerFunc, len(rg.middlewares))
+	copy(middlewares, rg.middlewares)
+
+	rg.engine.router.GET(absolutePath, func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+		// Run group middlewares in the HTTP phase so auth/rate-limit middleware works.
+		if len(middlewares) > 0 {
+			c := &Context{
+				Writer:   w,
+				Request:  r,
+				Params:   params,
+				handlers: middlewares,
+				index:    -1,
+			}
+			c.Next()
+			if c.isAborted {
+				return
+			}
+		}
+
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Printf(Red+"WS upgrade failed: %v"+Reset, err)
+			return
+		}
+		defer conn.Close()
+
+		wc := &WSContext{
+			Conn:    conn,
+			Keys:    make(map[string]any),
+			Params:  params,
+			Request: r,
+		}
+
+		handler(wc)
+	})
 }
