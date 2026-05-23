@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/DevanshuTripathi/vodka"
@@ -9,9 +11,15 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// jwtSecret is the HMAC signing key used to issue and verify tokens.
-// In production, load this from an environment variable or a secrets manager.
-const jwtSecret = "super-secret-vodka-key"
+// jwtSecret is the HMAC signing key. Loaded from JWT_SECRET env var at startup.
+// Falls back to a labelled insecure value for local development only.
+var jwtSecret = func() string {
+	if s := os.Getenv("JWT_SECRET"); s != "" {
+		return s
+	}
+	log.Println("[warn] JWT_SECRET not set — using INSECURE hardcoded fallback (development only)")
+	return "super-secret-vodka-key-INSECURE-DO-NOT-USE-IN-PROD"
+}()
 
 // loginRequest represents the expected JSON body for POST /login.
 type loginRequest struct {
@@ -39,13 +47,14 @@ func main() {
 	app.POST("/login", func(c *vodka.Context) {
 		var req loginRequest
 		if err := c.BindJSON(&req); err != nil {
-			c.JSON(400, vodka.M{"error": "invalid request body: " + err.Error()})
+			log.Printf("[login] JSON bind/validation error: %v", err)
+			c.Error(400, fmt.Errorf("invalid request body: validation failed"))
 			return
 		}
 
 		// Simple credential check (swap with a real DB lookup in production)
 		if req.Password != "vodka" {
-			c.JSON(401, vodka.M{"error": "invalid credentials"})
+			c.Error(401, fmt.Errorf("invalid credentials"))
 			return
 		}
 
@@ -55,15 +64,13 @@ func main() {
 			"username": req.Username,
 			"role":     "user",
 		}, 24*time.Hour)
-
 		if err != nil {
 			log.Printf("[login] token generation failed: %v", err)
-			c.JSON(500, vodka.M{"error": "could not generate token"})
+			c.Error(500, fmt.Errorf("could not generate token"))
 			return
 		}
 
 		log.Printf("[login] issued token for user %q", req.Username)
-
 		c.JSON(200, vodka.M{
 			"message":    "login successful",
 			"token":      token,
@@ -90,16 +97,14 @@ func main() {
 	secure.GET("/profile", func(c *vodka.Context) {
 		raw, exists := c.Get("claims")
 		if !exists {
-			c.JSON(401, vodka.M{"error": "claims not found in context"})
+			c.Error(401, fmt.Errorf("claims not found in context"))
 			return
 		}
-
 		claims, ok := raw.(jwt.MapClaims)
 		if !ok {
-			c.JSON(500, vodka.M{"error": "unexpected claims format"})
+			c.Error(500, fmt.Errorf("unexpected claims format"))
 			return
 		}
-
 		c.JSON(200, vodka.M{
 			"message":  "welcome to your profile",
 			"username": claims["username"],
@@ -112,16 +117,23 @@ func main() {
 	// GET /api/secure/dashboard — a second protected route to demonstrate
 	// the group middleware protecting multiple endpoints.
 	secure.GET("/dashboard", func(c *vodka.Context) {
-		raw, _ := c.Get("claims")
-		claims, _ := raw.(jwt.MapClaims)
-
+		raw, exists := c.Get("claims")
+		if !exists {
+			c.Error(401, fmt.Errorf("claims not found in context"))
+			return
+		}
+		claims, ok := raw.(jwt.MapClaims)
+		if !ok {
+			c.Error(500, fmt.Errorf("unexpected claims format"))
+			return
+		}
 		c.JSON(200, vodka.M{
 			"message": "dashboard data",
 			"user":    claims["username"],
 			"stats": vodka.M{
-				"projects":  12,
+				"projects":   12,
 				"tasks_done": 47,
-				"uptime":    "99.9%",
+				"uptime":     "99.9%",
 			},
 		})
 	})

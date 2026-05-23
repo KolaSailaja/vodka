@@ -2,8 +2,9 @@ module file-upload
 
 go 1.24.4
 
+require github.com/DevanshuTripathi/vodka v0.2.17
+
 require (
-	github.com/DevanshuTripathi/vodka v0.2.17 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
