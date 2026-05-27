@@ -128,39 +128,51 @@ func TestGzipRouteLevel(t *testing.T) {
 }
 
 func TestGzipPreservesStatusCode(t *testing.T) {
-    router := vodka.NewRouter()
-    router.Use(vodka.Logger())
+	app := vodka.NewRouter()
+	app.Use(vodka.Logger())
+	api := app.Group("/api", Gzip())
+	api.GET("/notfound", func(c *vodka.Context) {
+		c.JSON(http.StatusNotFound, vodka.M{"error": "not found"})
+	})
 
-    api := router.Group("/api", mixers.Gzip())
-    api.GET("/notfound", func(c *vodka.Context) {
-        c.JSON(http.StatusNotFound, vodka.M{"error": "not found"})
-    })
+	s := httptest.NewServer(app)
+	defer s.Close()
 
-    w := httptest.NewRecorder()
-    req := httptest.NewRequest(http.MethodGet, "/api/notfound", nil)
-    req.Header.Set("Accept-Encoding", "gzip")
-    router.ServeHTTP(w, req)
+	req, _ := http.NewRequest("GET", s.URL+"/api/notfound", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
 
-    if w.Code != http.StatusNotFound {
-        t.Errorf("expected 404, got %d", w.Code)
-    }
+	resp, err := http.DefaultTransport.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("request error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", resp.StatusCode)
+	}
 }
 
 func TestGzipPreservesStatusCodeOnError(t *testing.T) {
-    router := vodka.NewRouter()
-    router.Use(vodka.Logger())
+	app := vodka.NewRouter()
+	app.Use(vodka.Logger())
+	api := app.Group("/api", Gzip())
+	api.GET("/error", func(c *vodka.Context) {
+		c.JSON(http.StatusInternalServerError, vodka.M{"error": "server error"})
+	})
 
-    api := router.Group("/api", mixers.Gzip())
-    api.GET("/error", func(c *vodka.Context) {
-        c.JSON(http.StatusInternalServerError, vodka.M{"error": "server error"})
-    })
+	s := httptest.NewServer(app)
+	defer s.Close()
 
-    w := httptest.NewRecorder()
-    req := httptest.NewRequest(http.MethodGet, "/api/error", nil)
-    req.Header.Set("Accept-Encoding", "gzip")
-    router.ServeHTTP(w, req)
+	req, _ := http.NewRequest("GET", s.URL+"/api/error", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
 
-    if w.Code != http.StatusInternalServerError {
-        t.Errorf("expected 500, got %d", w.Code)
-    }
+	resp, err := http.DefaultTransport.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("request error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", resp.StatusCode)
+	}
 }
