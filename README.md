@@ -45,6 +45,7 @@ Unlike traditional Go frameworks that focus only on request handling, Vodka heav
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Location Flag](#create-app-at-a-specific-location)
 - [Generated Backend Structure](#generated-backend-structure)
 - [Minimal API Example](#minimal-api-example)
 - [Using Vodka for APIs](#using-vodka-for-apis)
@@ -157,6 +158,39 @@ This generates:
 - A React + Vite frontend
 - Preconfigured development workflow
 - SPA support for production deployments
+
+---
+
+## Create App at a Specific Location
+
+Use `-l` or `--location` to scaffold the project at a custom path:
+
+```bash
+vodka create my-app --location /path/to/projects
+```
+
+```bash
+vodka create my-app -l ./projects/backend
+```
+
+The project directory is created at the specified path. The module name remains `my-app` regardless of the path.
+
+Arguments can be passed in any order:
+
+```bash
+vodka create my-app --minimal --location ./projects
+vodka create my-app --location ./projects --minimal
+```
+
+---
+
+## Create a Minimal App
+
+```bash
+vodka create my-app --minimal
+```
+
+Scaffolds only the Go backend without controllers or routes directories.
 
 ---
 
