@@ -45,7 +45,6 @@ Unlike traditional Go frameworks that focus only on request handling, Vodka heav
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
-- [Location Flag](#create-app-at-a-specific-location)
 - [Generated Backend Structure](#generated-backend-structure)
 - [Minimal API Example](#minimal-api-example)
 - [Using Vodka for APIs](#using-vodka-for-apis)
@@ -166,8 +165,6 @@ vodka create my-app /path/to/parent-dir
 
 The project will be created at `<location>/<name>` (e.g. `/path/to/parent-dir/my-app`). If no location is provided, the current directory is used.
 
-Use `--minimal` to skip the project type prompt and scaffold a bare-bones backend without frontend tooling:
-
 ```bash
 vodka create my-app --minimal
 vodka create my-app /path/to/dir --minimal
@@ -180,28 +177,6 @@ This generates:
 - Preconfigured development workflow
 - SPA support for production deployments
 
----
-
-## Create App at a Specific Location
-
-Use `-l` or `--location` to scaffold the project at a custom path:
-
-```bash
-vodka create my-app --location /path/to/projects
-```
-
-```bash
-vodka create my-app -l ./projects/backend
-```
-
-The project directory is created at the specified path. The module name remains `my-app` regardless of the path.
-
-Arguments can be passed in any order:
-
-```bash
-vodka create my-app --minimal --location ./projects
-vodka create my-app --location ./projects --minimal
-```
 
 ---
 
