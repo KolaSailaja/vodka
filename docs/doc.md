@@ -1,6 +1,6 @@
 # Vodka Documentation
 
-Vodka is a lightweight, expressive HTTP framework for Go built on top of `httprouter`. It provides routing, middleware chaining, context utilities, SSE, WebSocket support, and a suite of plugin middleware called **mixers**.
+Vodka is a developer friendly Go framework for full stack applications.
 
 ---
 
@@ -26,13 +26,31 @@ Vodka is a lightweight, expressive HTTP framework for Go built on top of `httpro
 
 ## Installation
 
+Install the Vodka package:
+
 ```bash
 go get github.com/DevanshuTripathi/vodka
+```
+
+Install the Vodka CLI:
+
+```bash
+go install github.com/DevanshuTripathi/vodka/cmd/vodka@latest
 ```
 
 ---
 
 ## Quick Start
+
+### Create a new project with the Vodka CLI
+
+```bash
+vodka new myapp
+cd myapp
+go run main.go
+```
+
+### Manually
 
 ```go
 package main
