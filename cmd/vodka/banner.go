@@ -8,10 +8,10 @@ import (
 
 // ANSI colors for the ultimate terminal aesthetic
 const (
-	R = "\033[0m"    // Reset
-	G = "\033[1;37m" // Bold White (Glass)
-	L = "\033[1;36m" // Bold Cyan (Vodka)
-	W = "\033[1;37m" // Bold White (Ice / Droplets)
+	R = Reset
+	G = Gray
+	L = Cyan
+	W = Gray
 )
 
 func printPouringAnimation(msg string) {
