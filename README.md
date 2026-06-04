@@ -77,6 +77,7 @@ Unlike traditional Go frameworks that focus only on request handling, Vodka heav
 | Logger Middleware | ✅ |
 | CORS Middleware | ✅ |
 | Context Storage | ✅ |
+| HTML Template Rendering | ✅ |
 
 ---
 
@@ -531,6 +532,49 @@ app.Use(mixers.RequestIDWithHeader("X-Correlation-ID"))
 ```
 
 ---
+# Template Rendering
+
+Vodka supports Go's native `html/template` package for server-side HTML rendering.
+
+## Basic Usage
+
+```go
+app := vodka.DefaultRouter()
+
+// Load all templates from templates folder
+app.LoadHTMLGlob("templates/*.html")
+
+app.GET("/user", func(c *vodka.Context) {
+    c.HTML(200, "user.html", vodka.M{
+        "name": "John Doe",
+        "email": "john@example.com",
+    })
+})
+
+## Template Files
+
+Create a templates/user.html file:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>User Profile</title>
+</head>
+<body>
+    <h1>Hello, {{.name}}!</h1>
+    <p>Email: {{.email}}</p>
+</body>
+</html>  ```
+
+## Methods
+LoadHTMLGlob(pattern string) error - Load templates using glob pattern
+
+LoadHTMLFiles(files ...string) error - Load specific template files
+
+c.HTML(code int, name string, data interface{}) - Render HTML template
+
+Templates work seamlessly with Vodka's hot-reload in development mode.
 
 
 # Validation

@@ -1,6 +1,7 @@
 package vodka
 
 import (
+	"html/template"
 	"log"
 	"net"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
@@ -24,6 +26,8 @@ type Engine struct {
 	router         *httprouter.Router
 	WSConfig       *WSConfig
 	trustedProxies []*net.IPNet
+	templates      map[string]*template.Template
+	templatesMu    sync.RWMutex
 	*RouterGroup
 }
 
@@ -77,6 +81,58 @@ func (e *Engine) Run(addr string) error {
 
 	// Using net/http
 	return http.ListenAndServe(addr, e)
+}
+
+// LoadHTMLGlob parses and caches templates from a glob pattern
+func (e *Engine) LoadHTMLGlob(pattern string) error {
+	e.templatesMu.Lock()
+	defer e.templatesMu.Unlock()
+
+	if e.templates == nil {
+		e.templates = make(map[string]*template.Template)
+	}
+
+	tmpl, err := template.ParseGlob(pattern)
+	if err != nil {
+		return err
+	}
+
+	// Store parsed templates
+	for _, t := range tmpl.Templates() {
+		e.templates[t.Name()] = t
+	}
+	return nil
+}
+
+// LoadHTMLFiles parses and caches specific template files
+func (e *Engine) LoadHTMLFiles(files ...string) error {
+	e.templatesMu.Lock()
+	defer e.templatesMu.Unlock()
+
+	if e.templates == nil {
+		e.templates = make(map[string]*template.Template)
+	}
+
+	for _, file := range files {
+		tmpl, err := template.ParseFiles(file)
+		if err != nil {
+			return err
+		}
+		for _, t := range tmpl.Templates() {
+			e.templates[t.Name()] = t
+		}
+	}
+	return nil
+}
+
+// getTemplate returns a cached template by name
+func (e *Engine) getTemplate(name string) *template.Template {
+	e.templatesMu.RLock()
+	defer e.templatesMu.RUnlock()
+	if e.templates == nil {
+		return nil
+	}
+	return e.templates[name]
 }
 
 // Serve Static files

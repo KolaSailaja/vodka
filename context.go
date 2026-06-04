@@ -3,6 +3,7 @@ package vodka
 import (
 	"encoding/json"
 	"fmt"
+	
 	"io"
 	"log"
 	"mime/multipart"
@@ -384,4 +385,20 @@ func (c *Context) ClearCookie(name string) {
 		Path:     "/",
 		HttpOnly: true,
 	})
+}
+
+// HTML renders an HTML template with the given status code and data
+func (c *Context) HTML(code int, name string, data interface{}) {
+	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+	c.Writer.WriteHeader(code)
+	
+	tmpl := c.engine.getTemplate(name)
+	if tmpl == nil {
+		c.String(500, "Template not found: "+name)
+		return
+	}
+	
+	if err := tmpl.Execute(c.Writer, data); err != nil {
+		c.String(500, "Template error: "+err.Error())
+	}
 }
