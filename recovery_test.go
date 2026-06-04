@@ -58,3 +58,30 @@ func TestRecovery_PanicAfterWrite(t *testing.T) {
 		t.Errorf("expected single JSON body, got multiple concatenated: %s", body)
 	}
 }
+
+// TestRecovery_PanicAfterRawWrite covers the case where a handler writes
+// bytes directly via c.Writer.Write() — no explicit WriteHeader() call —
+// and then panics. Before the Write() fix on responseWriter, rw.wroteHeader
+// stayed false even though bytes were already in flight, so Recovery()
+// would call c.JSON(500) a second time, corrupting the response stream.
+func TestRecovery_PanicAfterRawWrite(t *testing.T) {
+	app := DefaultRouter()
+
+	app.GET("/raw-write-then-panic", func(c *Context) {
+		// Bypass vodka helpers — write bytes directly.
+		// The underlying ResponseWriter implicitly sends a 200 header here,
+		// so rw.wroteHeader must be set to true by the Write() method.
+		c.Writer.Write([]byte(`{"data":"partial"}`))
+		panic("panic after raw write")
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/raw-write-then-panic", nil)
+	app.ServeHTTP(w, req)
+
+	// Recovery must NOT append a 500 body on top of an already-started response.
+	body := w.Body.String()
+	if strings.Count(body, "{") > 1 {
+		t.Errorf("expected single JSON body (no double-write), got: %s", body)
+	}
+}
