@@ -13,7 +13,7 @@ export default function Navbar() {
 
           <div className="flex flex-wrap items-center justify-center gap-3 text-sm font-medium md:justify-start">
             <Link href="/">
-              <span className="cursor-pointer transition-colors duration-200 hover:text-slate-300">Home</span>
+              <span className="cursor-pointer rounded-full border border-slate-700 px-4 py-2 transition-colors duration-200 hover:border-slate-500 hover:text-slate-300">Home</span>
             </Link>
             <a href="#features" className="rounded-full border border-slate-700 px-4 py-2 transition-colors duration-200 hover:border-slate-500 hover:text-slate-300">
               Features
@@ -22,9 +22,9 @@ export default function Navbar() {
               About
             </a>
             <Link href="/docs">
-              <span className="cursor-pointer transition-colors duration-200 hover:text-slate-300">Documentation</span>
+              <span className="cursor-pointer rounded-full border border-slate-700 px-4 py-2 transition-colors duration-200 hover:border-slate-500 hover:text-slate-300">Documentation</span>
             </Link>
-            <a href="https://github.com/DevanshuTripathi/vodka" target="_blank" rel="noopener noreferrer" className="transition-colors duration-200 hover:text-slate-300">
+            <a href="https://github.com/DevanshuTripathi/vodka" target="_blank" rel="noopener noreferrer" className="rounded-full border border-slate-700 px-4 py-2 transition-colors duration-200 hover:border-slate-500 hover:text-slate-300">
               GitHub
             </a>
           </div>
